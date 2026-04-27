@@ -99,6 +99,7 @@ cli-helper 启动后监听 `http://localhost:7842`，提供 Web UI：
 
 ## 详细参考
 
+- **安装与配置指南**：[references/installation.md](references/installation.md)
 - **完整工具说明**：[references/tools.md](references/tools.md)
 - **多媒体工作流（音频/视频/图片剪辑 + ffmpeg）**：[references/multimedia.md](references/multimedia.md)
 - **常见对话场景**：[references/scenarios.md](references/scenarios.md)

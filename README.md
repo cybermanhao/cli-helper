@@ -6,33 +6,11 @@
 
 ---
 
-## 安装
+## 安装与使用
 
-```bash
-npm install
-npm run build
-```
+通过 **cli-helper skill** 安装和配置 MCP Server。Agent 会自动完成 `npm install`、`npm run build`、编辑 `~/.kimi/mcp.json` 等步骤。
 
-## 注册到 MCP
-
-编辑 `~/.kimi/mcp.json`（路径改为你的实际路径）：
-
-```json
-{
-  "mcpServers": {
-    "cli-helper": {
-      "command": "node",
-      "args": ["C:/code/cli-helper/dist/index.js"],
-      "env": {
-        "PROJECT_ROOT": "C:/code/cli-helper",
-        "CLI_HELPER_MODE": "stdio"
-      }
-    }
-  }
-}
-```
-
-注册后重启 Kimi CLI，输入 `/mcp` 查看已连接的服务器和工具列表。
+> 详细安装指南、MCP 注册配置、环境变量说明见 [SKILL.md](.agents/skills/cli-helper/SKILL.md)
 
 ## 功能速览
 
