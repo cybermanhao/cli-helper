@@ -1,16 +1,15 @@
 ---
 name: cli-helper
 description: >
-  MCP Server 提供操作系统交互能力。当用户需要以下操作时使用此 skill：
-  (1) 打开浏览器选择图片/音频/视频文件（show_asset_picker）
-  (2) 拖拽上传文件到指定目录（upload_files）
-  (3) 执行 shell 命令并获取输出（run_command）
-  (4) 发送系统通知（show_notification）
-  (5) 打开文件或文件夹（open_path）
-  (6) 弹出系统对话框确认/输入/选择（show_dialog）
-  (7) 管理策略规则或查看审计日志（manage_policy / list_policies）
-  (8) 清理/整理/扫描文件（需结合 run_command + show_asset_picker）
-  (9) 裁剪音视频、处理图片（ffmpeg / image-edit.py）
+  MCP Server 提供操作系统交互能力。当 Agent 判断需要与操作系统或用户进行交互时使用此 skill。
+  触发场景包括：
+  (1) 用户直接请求：选图片/音频/视频、上传文件、运行命令、打开文件夹、发送通知
+  (2) Agent 自主判断：整理/清理/扫描文件时需要让用户可视化的选择（show_asset_picker）、
+      处理多媒体前需要让用户裁剪剪辑（音频波形图/视频时间轴/图片编辑器）、
+      执行危险命令前需要二次确认（show_dialog confirm）、
+      长任务完成后需要通知用户（show_notification）、
+      需要打开文件/文件夹供用户查看（open_path）
+  (3) 治理相关：执行命令前需要评估策略（Policy Engine）、查看审计日志
 ---
 
 # CLI Helper Skill
