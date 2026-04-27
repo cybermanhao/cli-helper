@@ -103,3 +103,4 @@ cli-helper 启动后监听 `http://localhost:7842`，提供 Web UI：
 - **多媒体工作流（音频/视频/图片剪辑 + ffmpeg）**：[references/multimedia.md](references/multimedia.md)
 - **常见对话场景**：[references/scenarios.md](references/scenarios.md)
 - **Policy Engine 详细说明**：[references/policies.md](references/policies.md)
+- **完整 REST API 与 Dashboard 功能**：[references/api-reference.md](references/api-reference.md)
