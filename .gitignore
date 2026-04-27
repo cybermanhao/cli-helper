@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Logs
+*.log
+*.err
+server.log
+server.err
+sse-server.log
+sse-server.err
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.crush/
+agent-workspace/
+.weixin-sync-buf.json
+waifu-demo.log
+waifu-demo.err
+.skill-examples.json
+
+# Test artifacts
+coverage/

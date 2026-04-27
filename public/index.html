@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLI Helper Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0a0a14;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #12121f;
+    border-bottom: 1px solid #1e1e2e;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  header h1 {
+    font-size: 1.1rem;
+    color: #c8a2e8;
+  }
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #1e3a2f;
+    color: #4ade80;
+  }
+  .status-badge.disconnected {
+    background: #3a1e1e;
+    color: #ef4444;
+  }
+  main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+  .sidebar {
+    width: 280px;
+    background: #0f0f1a;
+    border-right: 1px solid #1e1e2e;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar h2 {
+    font-size: 0.8rem;
+    color: #888;
+    padding: 12px 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .session-list {
+    overflow-y: auto;
+    flex: 1;
+  }
+  .session-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid #161626;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .session-item:hover {
+    background: #161626;
+  }
+  .session-item.active {
+    background: #1a1a35;
+    border-left: 3px solid #7b5ea7;
+  }
+  .session-id {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #7b5ea7;
+    margin-bottom: 2px;
+  }
+  .session-tool {
+    font-size: 0.8rem;
+    color: #aaa;
+  }
+  .session-status {
+    font-size: 0.7rem;
+    margin-top: 4px;
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+  .session-status.pending { background: #2a2a3e; color: #888; }
+  .session-status.waiting_user { background: #3a3a1e; color: #f0c040; }
+  .session-status.running { background: #1e3a3e; color: #40c0f0; }
+  .session-status.completed { background: #1e3a1e; color: #40c040; }
+  .session-status.cancelled { background: #3a1e1e; color: #c04040; }
+  .session-status.error { background: #3a1e1e; color: #ef4444; }
+
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .event-stream {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  .event-item {
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+    font-size: 0.8rem;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .event-time {
+    color: #555;
+    font-size: 0.7rem;
+    margin-right: 8px;
+  }
+  .event-type {
+    font-weight: 600;
+    color: #c8a2e8;
+  }
+  .event-type.choice-request { color: #f0c040; }
+  .event-type.choice-resolved { color: #40c040; }
+  .event-type.choice-rejected { color: #ef4444; }
+  .event-type.choice-timeout { color: #c04040; }
+  .event-data {
+    color: #888;
+    margin-top: 4px;
+    font-family: monospace;
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .choice-panel {
+    background: #12121f;
+    border-top: 1px solid #1e1e2e;
+    padding: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .choice-panel h3 {
+    font-size: 0.85rem;
+    color: #f0c040;
+    margin-bottom: 10px;
+  }
+  .choice-form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .choice-form input {
+    flex: 1;
+    background: #0f0f1a;
+    border: 1px solid #2a2a4e;
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: #e0e0e0;
+    font-size: 0.85rem;
+  }
+  .choice-form input:focus {
+    outline: none;
+    border-color: #7b5ea7;
+  }
+  .choice-form button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .choice-form button:hover { opacity: 0.85; }
+  .btn-confirm { background: #7b5ea7; color: #fff; }
+  .btn-cancel { background: #2a2a4e; color: #888; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #555;
+    font-size: 0.85rem;
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid #1e1e2e;
+  }
+  .tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #888;
+    padding: 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: #ccc; }
+  .tab.active {
+    color: #c8a2e8;
+    border-bottom: 2px solid #7b5ea7;
+    background: #12121f;
+  }
+  .tab-panel { display: none; flex: 1; overflow: hidden; flex-direction: column; }
+  .tab-panel.active { display: flex; }
+
+  /* Policy list */
+  .policy-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px;
+  }
+  .policy-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+  }
+  .policy-item .p-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .policy-item .p-id {
+    color: #7b5ea7;
+    font-family: monospace;
+  }
+  .policy-item .p-action {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .policy-item .p-action.allow { background: #1e3a1e; color: #4ade80; }
+  .policy-item .p-action.deny { background: #3a1e1e; color: #ef4444; }
+  .policy-item .p-action.confirm { background: #3a3a1e; color: #f0c040; }
+  .policy-item .p-action.notify { background: #1e3a3e; color: #40c0f0; }
+  .policy-item .p-action.delay { background: #3a1e3a; color: #c8a2e8; }
+  .policy-item .p-meta {
+    color: #666;
+    font-size: 0.7rem;
+  }
+  .policy-item .p-remove {
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 4px;
+  }
+  .policy-item .p-remove:hover { color: #ef4444; }
+
+  /* Policy form */
+  .policy-form {
+    border-top: 1px solid #1e1e2e;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: #0f0f1a;
+  }
+  .policy-form h3 {
+    font-size: 0.75rem;
+    color: #888;
+    margin-bottom: 4px;
+  }
+  .policy-form input, .policy-form select {
+    background: #12121f;
+    border: 1px solid #2a2a4e;
+    border-radius: 4px;
+    padding: 6px 8px;
+    color: #e0e0e0;
+    font-size: 0.75rem;
+  }
+  .policy-form input:focus, .policy-form select:focus {
+    outline: none;
+    border-color: #7b5ea7;
+  }
+  .check-label {
+    font-size: 0.75rem;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .check-label input { width: auto; }
+
+  /* Audit */
+  .audit-stats {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    border-bottom: 1px solid #1e1e2e;
+    background: #0f0f1a;
+  }
+  .stat-box {
+    flex: 1;
+    text-align: center;
+    padding: 8px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+  }
+  .stat-num {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #c8a2e8;
+  }
+  .stat-label {
+    font-size: 0.65rem;
+    color: #666;
+    text-transform: uppercase;
+  }
+  .audit-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px;
+  }
+  .audit-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+  }
+  .audit-item .a-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .audit-item .a-time {
+    color: #555;
+    font-size: 0.7rem;
+  }
+  .audit-item .a-tool {
+    color: #7b5ea7;
+    font-family: monospace;
+    font-size: 0.7rem;
+  }
+  .audit-item .a-result {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .audit-item .a-result.allowed { background: #1e3a1e; color: #4ade80; }
+  .audit-item .a-result.denied { background: #3a1e1e; color: #ef4444; }
+  .audit-item .a-result.confirmed { background: #3a3a1e; color: #f0c040; }
+  .audit-item .a-result.notified { background: #1e3a3e; color: #40c0f0; }
+  .audit-item .a-result.delayed { background: #3a1e3a; color: #c8a2e8; }
+  .audit-item .a-result.error { background: #3a1e1e; color: #ef4444; }
+  .audit-item .a-result.info { background: #1e3a3e; color: #40c0f0; }
+  .audit-item .a-result.warn { background: #3a3a1e; color: #f0c040; }
+  .audit-item .a-result.debug { background: #1e1e2e; color: #888; }
+  .audit-item .a-meta {
+    color: #666;
+    font-size: 0.7rem;
+    margin-top: 2px;
+  }
+
+  /* View toolbar */
+  .view-toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 8px 16px;
+    background: #0f0f1a;
+    border-bottom: 1px solid #1e1e2e;
+  }
+  .view-btn {
+    background: transparent;
+    border: 1px solid #2a2a4e;
+    color: #888;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .view-btn:hover { color: #ccc; border-color: #7b5ea7; }
+  .view-btn.active {
+    background: #1a1a35;
+    border-color: #7b5ea7;
+    color: #c8a2e8;
+  }
+
+  /* Timeline */
+  .tl-item {
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+  }
+  .tl-item .tl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .tl-item .tl-time {
+    color: #555;
+    font-size: 0.7rem;
+  }
+  .tl-item .tl-type {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #aaa;
+    background: #1e1e2e;
+  }
+  .tl-item .tl-type.session { color: #7b5ea7; }
+  .tl-item .tl-type.audit { color: #40c0f0; }
+  .tl-item .tl-type.choice { color: #f0c040; }
+  .tl-item .tl-type.delay { color: #c8a2e8; }
+  .tl-item .tl-data {
+    color: #888;
+    font-size: 0.75rem;
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .change-toggle {
+    background: transparent;
+    border: 1px solid #2a2a4e;
+    color: #7b5ea7;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .change-toggle:hover { border-color: #7b5ea7; }
+  .change-detail { display: none; margin-top: 8px; }
+  .change-detail.open { display: block; }
+  .change-group { margin-bottom: 8px; }
+  .change-group-title { font-size: 0.7rem; font-weight: 600; margin-bottom: 4px; }
+  .change-file { font-size: 0.7rem; color: #aaa; padding: 2px 0; display: flex; justify-content: space-between; }
+  .change-file path { color: #888; }
+
+  /* Notify */
+  .notify-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px;
+  }
+  .notify-item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #12121f;
+    border: 1px solid #1e1e2e;
+    margin-bottom: 6px;
+    font-size: 0.75rem;
+  }
+  .notify-item .n-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .notify-item .n-id {
+    color: #7b5ea7;
+    font-family: monospace;
+  }
+  .notify-item .n-channel {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 600;
+    background: #1e1e2e;
+    color: #aaa;
+  }
+  .notify-item .n-meta {
+    color: #666;
+    font-size: 0.7rem;
+  }
+  .notify-item .n-remove {
+    background: transparent;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0 4px;
+  }
+  .notify-item .n-remove:hover { color: #ef4444; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>CLI Helper Dashboard</h1>
+    <span id="conn-status" class="status-badge disconnected">Disconnected</span>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <div class="tabs">
+        <button id="tab-sessions" class="tab active" onclick="switchTab('sessions')">Sessions</button>
+        <button id="tab-policies" class="tab" onclick="switchTab('policies')">Policies</button>
+        <button id="tab-audit" class="tab" onclick="switchTab('audit')">Audit</button>
+        <button id="tab-notify" class="tab" onclick="switchTab('notify')">Notify</button>
+        <button id="tab-state" class="tab" onclick="switchTab('state')">State</button>
+        <button id="tab-log" class="tab" onclick="switchTab('log')">Log</button>
+        <button id="tab-inbox" class="tab" onclick="switchTab('inbox')">Inbox</button>
+      </div>
+      <div id="panel-sessions" class="tab-panel active">
+        <div id="session-list" class="session-list">
+          <div class="empty-state">No active sessions</div>
+        </div>
+      </div>
+      <div id="panel-policies" class="tab-panel">
+        <div class="policy-list" id="policy-list">
+          <div class="empty-state">Loading policies...</div>
+        </div>
+        <div class="policy-form">
+          <h3>Add Policy</h3>
+          <input id="p-id" placeholder="ID (e.g. my-policy)" />
+          <input id="p-name" placeholder="Name (optional)" />
+          <select id="p-scope">
+            <option value="command">command</option>
+            <option value="file">file</option>
+            <option value="tool">tool</option>
+            <option value="network">network</option>
+          </select>
+          <input id="p-pattern" placeholder="Pattern (e.g. rm -rf)" />
+          <label class="check-label"><input type="checkbox" id="p-regex" /> Regex</label>
+          <select id="p-action">
+            <option value="allow">allow</option>
+            <option value="deny">deny</option>
+            <option value="confirm">confirm</option>
+            <option value="notify">notify</option>
+            <option value="delay">delay</option>
+          </select>
+          <input id="p-message" placeholder="Notify message (optional)" />
+          <input id="p-delay" type="number" placeholder="Delay ms (default 5000)" />
+          <button class="btn-confirm" onclick="addPolicy()">Add</button>
+        </div>
+      </div>
+      <div id="panel-audit" class="tab-panel">
+        <div class="audit-stats" id="audit-stats">
+          <div class="stat-box"><span class="stat-num" id="stat-total">0</span><span class="stat-label">Total</span></div>
+          <div class="stat-box"><span class="stat-num" id="stat-blocked">0</span><span class="stat-label">Blocked</span></div>
+          <div class="stat-box"><span class="stat-num" id="stat-allowed">0</span><span class="stat-label">Allowed</span></div>
+        </div>
+        <div class="audit-list" id="audit-list">
+          <div class="empty-state">Loading audit log...</div>
+        </div>
+      </div>
+      <div id="panel-notify" class="tab-panel">
+        <div class="notify-list" id="notify-list">
+          <div class="empty-state">Loading notification configs...</div>
+        </div>
+        <div class="policy-form">
+          <h3>Add Notify Config</h3>
+          <input id="n-id" placeholder="ID (e.g. slack-alerts)" />
+          <input id="n-name" placeholder="Name (optional)" />
+          <select id="n-channel">
+            <option value="slack_webhook">slack_webhook</option>
+            <option value="webhook">webhook</option>
+            <option value="system_notification">system_notification</option>
+          </select>
+          <input id="n-url" placeholder="Webhook URL" />
+          <label class="check-label"><input type="checkbox" id="n-enabled" checked /> Enabled</label>
+          <select id="n-events" multiple size="3" style="min-height:60px">
+            <option value="policy_denied">policy_denied</option>
+            <option value="policy_confirmed">policy_confirmed</option>
+            <option value="command_blocked">command_blocked</option>
+            <option value="audit_alert">audit_alert</option>
+            <option value="delay_cancelled">delay_cancelled</option>
+          </select>
+          <input id="n-template" placeholder="Template (optional, e.g. {event}: {message})" />
+          <button class="btn-confirm" onclick="addNotifyConfig()">Add</button>
+          <button class="btn-cancel" onclick="testNotify()">Test</button>
+        </div>
+      </div>
+      <div id="panel-state" class="tab-panel">
+        <div class="audit-list" id="state-list">
+          <div class="empty-state">Loading agent state...</div>
+        </div>
+      </div>
+      <div id="panel-log" class="tab-panel">
+        <div class="audit-list" id="log-list">
+          <div class="empty-state">Loading agent log...</div>
+        </div>
+      </div>
+      <div id="panel-inbox" class="tab-panel">
+        <div class="audit-list" id="inbox-list">
+          <div class="empty-state">Loading inbox...</div>
+        </div>
+        <div class="policy-form">
+          <h3>Send to Agent</h3>
+          <input id="inbox-msg" placeholder="Message..." />
+          <button class="btn-confirm" onclick="sendInbox()">Send</button>
+        </div>
+      </div>
+    </aside>
+    <section class="content">
+      <div class="view-toolbar" id="view-toolbar" style="display:none">
+        <button id="btn-events" class="view-btn active" onclick="switchView('events')">Events</button>
+        <button id="btn-timeline" class="view-btn" onclick="switchView('timeline')">Timeline</button>
+      </div>
+      <div id="event-stream" class="event-stream">
+        <div class="empty-state">Connect to a session to see events</div>
+      </div>
+      <div id="timeline-view" class="event-stream" style="display:none">
+        <div class="empty-state">Loading timeline...</div>
+      </div>
+      <div id="choice-panel" class="choice-panel" style="display:none">
+        <h3 id="choice-title">Pending Choice</h3>
+        <div id="choice-body"></div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const sessionListEl = document.getElementById('session-list');
+const eventStreamEl = document.getElementById('event-stream');
+const choicePanelEl = document.getElementById('choice-panel');
+const choiceTitleEl = document.getElementById('choice-title');
+const choiceBodyEl = document.getElementById('choice-body');
+const connStatusEl = document.getElementById('conn-status');
+
+let currentSessionId = null;
+let es = null;
+let pendingChoice = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function addEvent(type, data) {
+  const empty = eventStreamEl.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  const typeClass = type.startsWith('choice-') ? `event-type ${type}` : 'event-type';
+  div.innerHTML = `
+    <span class="event-time">${formatTime(Date.now())}</span>
+    <span class="${typeClass}">${esc(type)}</span>
+    ${data ? `<div class="event-data">${esc(JSON.stringify(data, null, 2))}</div>` : ''}
+  `;
+  eventStreamEl.appendChild(div);
+  eventStreamEl.scrollTop = eventStreamEl.scrollHeight;
+}
+
+// ── Session List ──────────────────────────────────────────────────────────────
+
+async function loadSessions() {
+  try {
+    const r = await fetch('/api/sessions');
+    const { sessions } = await r.json();
+    renderSessions(sessions);
+  } catch (err) {
+    console.error('loadSessions failed', err);
+  }
+}
+
+function renderSessions(sessions) {
+  if (!sessions.length) {
+    sessionListEl.innerHTML = '<div class="empty-state">No active sessions</div>';
+    return;
+  }
+  sessionListEl.innerHTML = '';
+  sessions.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'session-item' + (s.id === currentSessionId ? ' active' : '');
+    const canAbort = s.status === 'pending' || s.status === 'running';
+    div.innerHTML = `
+      <div class="session-id">${esc(s.id)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+        <div class="session-tool">${esc(s.tool)}</div>
+        ${canAbort ? `<button class="btn-cancel" style="font-size:0.65rem;padding:2px 8px" onclick="event.stopPropagation();abortSession('${esc(s.id)}')">Abort</button>` : ''}
+      </div>
+      <span class="session-status ${esc(s.status)}">${esc(s.status)}</span>
+    `;
+    div.onclick = () => connectSession(s.id);
+    sessionListEl.appendChild(div);
+  });
+}
+
+// ── SSE Connection ────────────────────────────────────────────────────────────
+
+function connectSession(sessionId) {
+  if (es) {
+    es.close();
+    es = null;
+  }
+  currentSessionId = sessionId;
+  loadSessions(); // refresh active state
+
+  // Show toolbar
+  document.getElementById('view-toolbar').style.display = 'flex';
+  switchView('events');
+
+  eventStreamEl.innerHTML = '';
+  addEvent('connected', { sessionId });
+
+  es = new EventSource(`/api/events/${sessionId}`);
+  connStatusEl.textContent = 'Connected';
+  connStatusEl.classList.remove('disconnected');
+
+  es.onmessage = (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      addEvent(data.type ?? 'event', data);
+      handleEvent(data);
+    } catch {
+      addEvent('raw', e.data);
+    }
+  };
+
+  es.onerror = () => {
+    connStatusEl.textContent = 'Disconnected';
+    connStatusEl.classList.add('disconnected');
+  };
+}
+
+// ── Choice Handling ───────────────────────────────────────────────────────────
+
+function handleEvent(data) {
+  if (data.type === 'choice-request') {
+    pendingChoice = { id: data.choiceId, type: data.choiceType, payload: data.payload };
+    showChoicePanel(data.choiceType, data.payload);
+  }
+  if (data.type === 'choice-resolved' || data.type === 'choice-rejected' || data.type === 'choice-timeout') {
+    pendingChoice = null;
+    hideChoicePanel();
+  }
+  if (data.type === 'delay-countdown') {
+    showDelayItem(data);
+  }
+  if (data.type === 'delay-expired' || data.type === 'delay-cancelled') {
+    removeDelayItem(data.delayId);
+  }
+}
+
+const delayItems = new Map();
+
+function showDelayItem(data) {
+  const existing = document.getElementById('delay-' + data.delayId);
+  if (existing) return;
+
+  const empty = eventStreamEl.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  div.id = 'delay-' + data.delayId;
+  div.innerHTML = `
+    <span class="event-time">${formatTime(data.createdAt)}</span>
+    <span class="event-type">delay</span>
+    <div class="event-data">${esc(data.scope)}: ${esc(data.target)} — <span class="delay-timer">${Math.ceil(data.delayMs / 1000)}s</span></div>
+    <button class="btn-cancel" style="margin-top:6px" onclick="cancelDelayItem('${esc(data.delayId)}')">Cancel</button>
+  `;
+  eventStreamEl.appendChild(div);
+  eventStreamEl.scrollTop = eventStreamEl.scrollHeight;
+  delayItems.set(data.delayId, { createdAt: data.createdAt, delayMs: data.delayMs, el: div });
+}
+
+function removeDelayItem(delayId) {
+  const el = document.getElementById('delay-' + delayId);
+  if (el) {
+    el.style.opacity = '0.5';
+    const btn = el.querySelector('button');
+    if (btn) btn.remove();
+    const timer = el.querySelector('.delay-timer');
+    if (timer) timer.textContent = timer.textContent.includes('cancelled') ? 'cancelled' : 'expired';
+  }
+  delayItems.delete(delayId);
+}
+
+async function cancelDelayItem(delayId) {
+  try {
+    const r = await fetch(`/api/delay/${delayId}/cancel`, { method: 'POST' });
+    if (r.ok) removeDelayItem(delayId);
+  } catch (e) {
+    console.error('cancelDelay failed', e);
+  }
+}
+
+// Update delay countdowns every second
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, info] of delayItems) {
+    const remaining = Math.max(0, info.delayMs - (now - info.createdAt));
+    const timer = info.el.querySelector('.delay-timer');
+    if (timer) timer.textContent = Math.ceil(remaining / 1000) + 's';
+    if (remaining <= 0) removeDelayItem(id);
+  }
+}, 1000);
+
+function showChoicePanel(type, payload) {
+  choicePanelEl.style.display = 'block';
+  choiceTitleEl.textContent = `Choice: ${type}`;
+
+  if (type === 'asset_picker' || type === 'upload_files') {
+    choiceBodyEl.innerHTML = `
+      <p style="color:#888;margin-bottom:8px">A browser picker/upload window has been opened. Make your selection there.</p>
+      <button class="btn-cancel" onclick="cancelChoice()">Cancel</button>
+    `;
+  } else if (type === 'dialog' || type === 'confirm') {
+    const msg = payload?.message ?? 'Confirm?';
+    choiceBodyEl.innerHTML = `
+      <p style="color:#ccc;margin-bottom:8px">${esc(msg)}</p>
+      <div class="choice-form">
+        <button class="btn-confirm" onclick="submitChoice(true)">Confirm</button>
+        <button class="btn-cancel" onclick="submitChoice(false)">Cancel</button>
+      </div>
+    `;
+  } else {
+    choiceBodyEl.innerHTML = `
+      <div class="choice-form">
+        <input type="text" id="choice-input" placeholder="Enter response..." />
+        <button class="btn-confirm" onclick="submitInput()">Submit</button>
+        <button class="btn-cancel" onclick="cancelChoice()">Cancel</button>
+      </div>
+    `;
+  }
+}
+
+function hideChoicePanel() {
+  choicePanelEl.style.display = 'none';
+  choiceBodyEl.innerHTML = '';
+}
+
+async function submitChoice(value) {
+  if (!pendingChoice) return;
+  await fetch(`/api/choice/${pendingChoice.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  });
+  pendingChoice = null;
+  hideChoicePanel();
+}
+
+async function submitInput() {
+  const input = document.getElementById('choice-input');
+  if (!input || !pendingChoice) return;
+  await fetch(`/api/choice/${pendingChoice.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: input.value }),
+  });
+  pendingChoice = null;
+  hideChoicePanel();
+}
+
+async function cancelChoice() {
+  if (!pendingChoice) return;
+  await fetch(`/api/cancel-choice/${pendingChoice.id}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: 'User cancelled from dashboard' }),
+  });
+  pendingChoice = null;
+  hideChoicePanel();
+}
+
+// ── View Switching (Events / Timeline) ────────────────────────────────────────
+
+function switchView(name) {
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + name).classList.add('active');
+  if (name === 'events') {
+    document.getElementById('event-stream').style.display = 'block';
+    document.getElementById('timeline-view').style.display = 'none';
+  } else {
+    document.getElementById('event-stream').style.display = 'none';
+    document.getElementById('timeline-view').style.display = 'block';
+    loadTimeline();
+  }
+}
+
+async function loadTimeline() {
+  if (!currentSessionId) return;
+  const el = document.getElementById('timeline-view');
+  try {
+    const [tlRes, chRes] = await Promise.all([
+      fetch(`/api/session/${currentSessionId}/timeline`),
+      fetch(`/api/session/${currentSessionId}/changes`),
+    ]);
+    if (!tlRes.ok) {
+      el.innerHTML = '<div class="empty-state">Failed to load timeline</div>';
+      return;
+    }
+    const { entries } = await tlRes.json();
+    const { changes } = chRes.ok ? await chRes.json() : { changes: null };
+    renderTimeline(entries, changes);
+  } catch (err) {
+    console.error('loadTimeline failed', err);
+    el.innerHTML = '<div class="empty-state">Error loading timeline</div>';
+  }
+}
+
+function renderTimeline(entries, changes) {
+  const el = document.getElementById('timeline-view');
+  if (!entries.length && !changes) {
+    el.innerHTML = '<div class="empty-state">No timeline entries</div>';
+    return;
+  }
+  el.innerHTML = '';
+
+  // File changes panel (if any)
+  if (changes && (changes.added.length || changes.modified.length || changes.removed.length)) {
+    const changesDiv = document.createElement('div');
+    changesDiv.className = 'tl-item';
+    changesDiv.style.borderColor = '#7b5ea7';
+    const detailId = 'ch-' + Math.random().toString(36).slice(2, 8);
+    let changeHtml = '<div class="tl-header"><span class="tl-type">changes</span><span class="tl-time">File Changes</span></div><div class="tl-data">';
+    if (changes.added.length) {
+      changeHtml += `<div style="color:#4ade80">+ ${changes.added.length} added</div>`;
+    }
+    if (changes.modified.length) {
+      changeHtml += `<div style="color:#f0c040">~ ${changes.modified.length} modified</div>`;
+    }
+    if (changes.removed.length) {
+      changeHtml += `<div style="color:#ef4444">- ${changes.removed.length} removed</div>`;
+    }
+    changeHtml += `<button class="change-toggle" onclick="document.getElementById('${detailId}').classList.toggle('open')">▼ Show files</button>`;
+    changeHtml += `<div class="change-detail" id="${detailId}">`;
+    if (changes.added.length) {
+      changeHtml += `<div class="change-group"><div class="change-group-title" style="color:#4ade80">Added</div>`;
+      changeHtml += changes.added.map(f => `<div class="change-file"><span>${esc(f.relPath)}</span><span style="color:#555">${f.size}B</span></div>`).join('');
+      changeHtml += '</div>';
+    }
+    if (changes.modified.length) {
+      changeHtml += `<div class="change-group"><div class="change-group-title" style="color:#f0c040">Modified</div>`;
+      changeHtml += changes.modified.map(f => `<div class="change-file"><span>${esc(f.relPath)}</span><span style="color:#555">${f.size}B</span></div>`).join('');
+      changeHtml += '</div>';
+    }
+    if (changes.removed.length) {
+      changeHtml += `<div class="change-group"><div class="change-group-title" style="color:#ef4444">Removed</div>`;
+      changeHtml += changes.removed.map(f => `<div class="change-file"><span>${esc(f.relPath)}</span><span style="color:#555">${f.size}B</span></div>`).join('');
+      changeHtml += '</div>';
+    }
+    changeHtml += '</div></div>';
+    changesDiv.innerHTML = changeHtml;
+    el.appendChild(changesDiv);
+  }
+
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'tl-item';
+    let dataStr = '';
+    if (e.type === 'audit') {
+      const a = e.data;
+      dataStr = `${esc(a.tool)}${a.target ? ' → ' + esc(a.target) : ''} — ${esc(a.result)}${a.blocked ? ' (blocked)' : ''}`;
+    } else if (e.type === 'session') {
+      const s = e.data;
+      dataStr = `Tool: ${esc(s.tool)} | Status: ${esc(s.status)}`;
+    } else if (e.type === 'session-resolved') {
+      const s = e.data;
+      dataStr = `Resolved — ${esc(s.status)}`;
+    } else if (e.type === 'choice') {
+      const c = e.data;
+      dataStr = `Choice: ${esc(c.type)}`;
+    } else if (e.type === 'delay') {
+      const d = e.data;
+      dataStr = `Delay: ${esc(d.scope)} → ${esc(d.target)} (${Math.ceil(d.remainingMs / 1000)}s remaining)`;
+    } else {
+      dataStr = esc(JSON.stringify(e.data, null, 2));
+    }
+    div.innerHTML = `
+      <div class="tl-header">
+        <span class="tl-time">${formatTime(e.timestamp)}</span>
+        <span class="tl-type ${esc(e.type)}">${esc(e.type)}</span>
+      </div>
+      <div class="tl-data">${dataStr}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── Tab Switching ─────────────────────────────────────────────────────────────
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+  if (name === 'policies') loadPolicies();
+  if (name === 'audit') { loadAudit(); loadAuditStats(); }
+  if (name === 'notify') loadNotifyConfigs();
+  if (name === 'state') loadState();
+  if (name === 'log') loadLog();
+  if (name === 'inbox') loadInbox();
+}
+
+// ── Policy Management ─────────────────────────────────────────────────────────
+
+async function loadPolicies() {
+  try {
+    const r = await fetch('/api/policies');
+    const { policies } = await r.json();
+    renderPolicies(policies);
+  } catch (err) {
+    console.error('loadPolicies failed', err);
+  }
+}
+
+function renderPolicies(policies) {
+  const el = document.getElementById('policy-list');
+  if (!policies.length) {
+    el.innerHTML = '<div class="empty-state">No policies defined</div>';
+    return;
+  }
+  el.innerHTML = '';
+  policies.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'policy-item';
+    div.innerHTML = `
+      <div class="p-header">
+        <span class="p-id">${esc(p.id)}</span>
+        <span class="p-action ${esc(p.action)}">${esc(p.action)}</span>
+        <button class="p-remove" onclick="removePolicy('${esc(p.id)}')" title="Remove">×</button>
+      </div>
+      <div class="p-meta">${esc(p.scope)} → ${esc(p.pattern)}${p.isRegex ? ' (regex)' : ''}</div>
+      ${p.notifyMessage ? `<div class="p-meta">msg: ${esc(p.notifyMessage)}</div>` : ''}
+    `;
+    el.appendChild(div);
+  });
+}
+
+async function addPolicy() {
+  const id = document.getElementById('p-id').value.trim();
+  const name = document.getElementById('p-name').value.trim() || id;
+  const scope = document.getElementById('p-scope').value;
+  const pattern = document.getElementById('p-pattern').value.trim();
+  const isRegex = document.getElementById('p-regex').checked;
+  const action = document.getElementById('p-action').value;
+  const notifyMessage = document.getElementById('p-message').value.trim() || undefined;
+  const delayMs = document.getElementById('p-delay').value ? parseInt(document.getElementById('p-delay').value) : undefined;
+
+  if (!id || !pattern) {
+    alert('ID and Pattern are required');
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/policies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, scope, pattern, isRegex, action, notifyMessage, delayMs }),
+    });
+    if (r.ok) {
+      document.getElementById('p-id').value = '';
+      document.getElementById('p-pattern').value = '';
+      loadPolicies();
+    } else {
+      const err = await r.json();
+      alert('Failed: ' + err.error);
+    }
+  } catch (e) {
+    alert('Network error');
+  }
+}
+
+async function removePolicy(id) {
+  if (!confirm('Remove policy ' + id + '?')) return;
+  try {
+    const r = await fetch(`/api/policies/${id}`, { method: 'DELETE' });
+    if (r.ok) loadPolicies();
+  } catch (e) {
+    console.error('removePolicy failed', e);
+  }
+}
+
+// ── Audit Management ──────────────────────────────────────────────────────────
+
+async function loadAudit() {
+  try {
+    const r = await fetch('/api/audit?limit=50');
+    const { entries, total } = await r.json();
+    renderAudit(entries, total);
+  } catch (err) {
+    console.error('loadAudit failed', err);
+  }
+}
+
+async function loadAuditStats() {
+  try {
+    const r = await fetch('/api/audit/stats');
+    const stats = await r.json();
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-blocked').textContent = stats.blocked;
+    document.getElementById('stat-allowed').textContent = stats.allowed;
+  } catch (err) {
+    console.error('loadAuditStats failed', err);
+  }
+}
+
+function renderAudit(entries, total) {
+  const el = document.getElementById('audit-list');
+  if (!entries.length) {
+    el.innerHTML = '<div class="empty-state">No audit entries</div>';
+    return;
+  }
+  el.innerHTML = '';
+  entries.forEach(e => {
+    const div = document.createElement('div');
+    div.className = 'audit-item';
+    const meta = [];
+    if (e.scope && e.target) meta.push(`${esc(e.scope)}: ${esc(e.target)}`);
+    if (e.policyId) meta.push(`policy: ${esc(e.policyId)}`);
+    if (e.sessionId) meta.push(`session: ${esc(e.sessionId).slice(0, 12)}...`);
+    div.innerHTML = `
+      <div class="a-header">
+        <span class="a-time">${formatTime(e.timestamp)}</span>
+        <span class="a-tool">${esc(e.tool)}</span>
+        <span class="a-result ${esc(e.result)}">${esc(e.result)}</span>
+      </div>
+      ${meta.length ? `<div class="a-meta">${meta.join(' | ')}</div>` : ''}
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── Notification Management ───────────────────────────────────────────────────
+
+async function loadNotifyConfigs() {
+  try {
+    const r = await fetch('/api/notify-configs');
+    const { configs } = await r.json();
+    renderNotifyConfigs(configs);
+  } catch (err) {
+    console.error('loadNotifyConfigs failed', err);
+  }
+}
+
+function renderNotifyConfigs(configs) {
+  const el = document.getElementById('notify-list');
+  if (!configs.length) {
+    el.innerHTML = '<div class="empty-state">No notification configs</div>';
+    return;
+  }
+  el.innerHTML = '';
+  configs.forEach(c => {
+    const div = document.createElement('div');
+    div.className = 'notify-item';
+    div.innerHTML = `
+      <div class="n-header">
+        <span class="n-id">${esc(c.id)}</span>
+        <span class="n-channel">${esc(c.channel)}</span>
+        <span style="color:${c.enabled ? '#4ade80' : '#666'};font-size:0.7rem">${c.enabled ? 'ON' : 'OFF'}</span>
+        <button class="n-remove" onclick="removeNotifyConfig('${esc(c.id)}')" title="Remove">×</button>
+      </div>
+      <div class="n-meta">${esc(c.events.join(', '))}${c.url ? ' | ' + esc(c.url).slice(0, 40) + '...' : ''}</div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+async function addNotifyConfig() {
+  const id = document.getElementById('n-id').value.trim();
+  const name = document.getElementById('n-name').value.trim() || id;
+  const channel = document.getElementById('n-channel').value;
+  const url = document.getElementById('n-url').value.trim() || undefined;
+  const enabled = document.getElementById('n-enabled').checked;
+  const events = Array.from(document.getElementById('n-events').selectedOptions).map(o => o.value);
+  const template = document.getElementById('n-template').value.trim() || undefined;
+
+  if (!id || !channel || events.length === 0) {
+    alert('ID, channel, and at least one event are required');
+    return;
+  }
+
+  try {
+    const r = await fetch('/api/notify-configs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name, channel, enabled, events, url, template }),
+    });
+    if (r.ok) {
+      document.getElementById('n-id').value = '';
+      document.getElementById('n-url').value = '';
+      loadNotifyConfigs();
+    } else {
+      const err = await r.json();
+      alert('Failed: ' + err.error);
+    }
+  } catch (e) {
+    alert('Network error');
+  }
+}
+
+async function removeNotifyConfig(id) {
+  if (!confirm('Remove notification config ' + id + '?')) return;
+  try {
+    const r = await fetch(`/api/notify-configs/${id}`, { method: 'DELETE' });
+    if (r.ok) loadNotifyConfigs();
+  } catch (e) {
+    console.error('removeNotifyConfig failed', e);
+  }
+}
+
+async function testNotify() {
+  try {
+    const r = await fetch('/api/notify-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: 'command_blocked', message: 'Test from Dashboard' }),
+    });
+    const result = await r.json();
+    alert('Sent: ' + result.sent + '\nErrors: ' + (result.errors.length ? result.errors.join('\n') : 'none'));
+  } catch (e) {
+    alert('Test failed');
+  }
+}
+
+// ── Agent Workspace ───────────────────────────────────────────────────────────
+
+async function loadState() {
+  const el = document.getElementById('state-list');
+  try {
+    const r = await fetch('/api/state');
+    const state = await r.json();
+    el.innerHTML = `<pre style="color:#888;font-size:0.75rem;padding:12px;white-space:pre-wrap;word-break:break-all">${esc(JSON.stringify(state, null, 2))}</pre>`;
+  } catch {
+    el.innerHTML = '<div class="empty-state">No state available</div>';
+  }
+}
+
+async function loadLog() {
+  const el = document.getElementById('log-list');
+  try {
+    const r = await fetch('/api/log?limit=50');
+    const lines = await r.json();
+    if (!lines.length) {
+      el.innerHTML = '<div class="empty-state">No log entries</div>';
+      return;
+    }
+    el.innerHTML = '';
+    lines.reverse().forEach(entry => {
+      const div = document.createElement('div');
+      div.className = 'audit-item';
+      div.innerHTML = `
+        <div class="a-header">
+          <span class="a-time">${esc(entry.timestamp ?? '—')}</span>
+          <span class="a-result ${esc(entry.level ?? 'info')}">${esc(entry.level ?? 'info')}</span>
+        </div>
+        <div class="a-meta">${esc(entry.message)}</div>
+      `;
+      el.appendChild(div);
+    });
+  } catch {
+    el.innerHTML = '<div class="empty-state">No log available</div>';
+  }
+}
+
+async function loadInbox() {
+  const el = document.getElementById('inbox-list');
+  try {
+    const r = await fetch('/api/inbox');
+    const messages = await r.json();
+    if (!messages.length) {
+      el.innerHTML = '<div class="empty-state">No messages</div>';
+      return;
+    }
+    el.innerHTML = '';
+    messages.slice().reverse().forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'audit-item';
+      div.style.opacity = m.read ? '0.6' : '1';
+      div.innerHTML = `
+        <div class="a-header">
+          <span class="a-time">${esc(m.timestamp ?? '—')}</span>
+          <span class="a-result" style="background:${m.read ? '#1e1e2e' : '#3a3a1e'};color:${m.read ? '#666' : '#f0c040'}">${m.read ? 'read' : 'unread'}</span>
+        </div>
+        <div class="a-meta">${esc(m.message)}</div>
+      `;
+      el.appendChild(div);
+    });
+  } catch {
+    el.innerHTML = '<div class="empty-state">No inbox available</div>';
+  }
+}
+
+async function sendInbox() {
+  const input = document.getElementById('inbox-msg');
+  const msg = input.value.trim();
+  if (!msg) return;
+  try {
+    const r = await fetch('/api/inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg }),
+    });
+    if (r.ok) {
+      input.value = '';
+      loadInbox();
+    }
+  } catch (e) {
+    alert('Failed to send');
+  }
+}
+
+async function abortSession(id) {
+  if (!confirm('Abort session ' + id + '?')) return;
+  try {
+    const r = await fetch(`/api/session/${id}/abort`, { method: 'POST' });
+    if (r.ok) loadSessions();
+  } catch (e) {
+    console.error('abortSession failed', e);
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+loadSessions();
+setInterval(loadSessions, 3000);
+
+// Auto-connect if ?session=xxx in URL
+const urlParams = new URLSearchParams(location.search);
+const autoSession = urlParams.get('session');
+if (autoSession) {
+  connectSession(autoSession);
+}
+</script>
+</body>
+</html>

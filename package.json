@@ -1,0 +1,35 @@
+{
+  "name": "cli-helper-mcp",
+  "version": "2.0.0",
+  "description": "Generic CLI Helper MCP Server for cross-platform agent productivity tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./picker": "./dist/picker.js"
+  },
+  "scripts": {
+    "build": "tsc && esbuild src/picker/picker.ts --bundle --outfile=dist/picker.js --target=es2020 --format=iife",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.19.17",
+    "esbuild": "^0.27.4",
+    "eventsource": "^4.1.0",
+    "playwright": "^1.59.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "vitest": "^4.1.5"
+  }
+}
