@@ -59,6 +59,38 @@ Dashboard: `http://localhost:7842`
 
 ## 截图
 
+浏览器界面只在 Agent 调用工具时**临时弹出**，任务结束后自动关闭。
+
+### 🖼️ 图片选择器
+
+Agent 需要用户从文件列表中选择时弹出。支持多选、搜索过滤、全选/反选。
+
 ![图片选择器](assets/screenshots/01-image-picker.png)
+
+### 🎵 音频选择器 + 波形图剪辑器
+
+Agent 需要用户精确选择音频片段时弹出。支持拖拽选择区间、光标定位播放。
+
+![音频选择器](assets/screenshots/02-audio-picker.png)
+
 ![音频剪辑器](assets/screenshots/03-audio-editor.png)
+
+### 🔍 搜索过滤
+
+实时按文件名筛选，快速定位目标文件。
+
+![搜索过滤](assets/screenshots/04-search-filter.png)
+
+### 🎬 视频选择器
+
+Agent 需要用户选择视频并裁剪片段时弹出。支持视频预览播放、时间轴区间选择。
+
 ![视频选择器](assets/screenshots/05-video-picker.png)
+
+### 🖼️ 图片编辑器
+
+Agent 需要用户确认裁剪/调整大小/抠图时弹出。
+
+![图片编辑器](assets/screenshots/07-image-editor-modal.png)
+
+![图片裁剪](assets/screenshots/08-image-editor-crop.png)
