@@ -1,8 +1,28 @@
 # CLI Helper MCP
 
-通用跨平台 Agent 交互基础设施。为 AI Agent 提供与用户操作系统交互的能力，同时让人类能在关键节点介入 Agent 的执行流程。
+为 CLI Agent 补充操作系统交互能力的 MCP Server。
+
+**核心定位**：Agent 在执行任务时，遇到"需要人类看一眼/选一下/确认一下"的节点，临时拉起浏览器或系统对话框完成交互，然后继续执行。所有 GUI 都是**临时弹出的辅助界面**，不是常驻应用。
 
 **演进路线**：HITL (Human-in-the-Loop) → HOTM (Human-on-the-Loop)
+
+---
+
+## 这是什么
+
+- **MCP Server**：注册到 Kimi/Claude 等 Agent 后，Agent 通过工具调用来使用这些能力
+- **人机协作框架**：Session 追踪每次交互的完整生命周期，Policy Engine 管控危险操作，Audit Log 记录所有行为
+- **GUI 补充层**：当 CLI 无法完成"可视化选择、试听预览、时间轴裁剪"等任务时，临时打开浏览器界面供人类操作
+
+## 这不是什么
+
+| ❌ 不是 | 说明 |
+|--------|------|
+| 完整的 ffmpeg 可视化工具 | 波形图/时间轴只是辅助 Agent 完成裁剪的临时界面，不做专业音视频编辑 |
+| 独立的图片编辑器 | 裁剪/resize/抠图是为 Agent 工作流服务的快捷操作，不做 Photoshop 级别的图像处理 |
+| 通用文件管理器 | 文件选择器只在 Agent 需要用户确认文件列表时临时弹出 |
+| 桌面应用 | 没有常驻窗口，所有界面都是任务触发后临时拉起，任务结束即关闭 |
+| 操作系统替代品 | 不替代 Shell、Finder、Explorer，而是在 Agent 需要人类介入时桥接两者 |
 
 ---
 
@@ -33,8 +53,8 @@
 |------|------|------|
 | `show_dialog` | 同步对话框 (ok/confirm/input/select/file_picker) | 同步 |
 | `show_notification` | 非阻塞系统通知 | 即时 |
-| `show_asset_picker` | 浏览器图片选择器（异步 Choice） | 异步 |
-| `upload_files` | 拖拽文件上传（异步 Choice） | 异步 |
+| `show_asset_picker` | 浏览器资产选择器（图片/音频/视频） | 异步 |
+| `upload_files` | 拖拽文件上传 | 异步 |
 | `run_command` | 运行 shell 命令 | 同步 |
 | `check_process` | 检查进程是否运行 | 同步 |
 | `open_path` | 打开文件/文件夹 | 同步 |
@@ -62,7 +82,7 @@ pending → waiting_user → running → completed | cancelled | error | timeout
 
 Session 提供可观测性——Agent 和人类都能查询"刚才发生了什么"。
 
-### Policy Engine（Phase 2）
+### Policy Engine
 
 策略引擎为 Agent 操作提供规则治理。人类预设规则，Agent 执行时自动评估：
 
@@ -82,7 +102,7 @@ Scope 支持：`command` | `file` | `tool` | `network`
 - `npm install` → allow
 - `.env` 文件 → confirm
 
-### Audit Log（Phase 3）
+### Audit Log
 
 每次工具调用和策略评估都被记录到审计日志（`~/.cli-helper/audit.jsonl`），提供完整的 Agent 行为追溯。
 
@@ -157,15 +177,17 @@ Scope 支持：`command` | `file` | `tool` | `network`
 
 ## 功能截图
 
+浏览器界面只在 Agent 调用工具时**临时弹出**，任务结束后自动关闭。以下截图展示的是人机交互过程中的界面：
+
 ### 🖼️ 图片选择器
 
-支持多选、搜索过滤、全选/反选、文件详情、打开所在目录。
+Agent 需要用户从文件列表中选择时弹出。支持多选、搜索过滤、全选/反选。
 
 ![图片选择器](assets/screenshots/01-image-picker.png)
 
 ### 🎵 音频选择器 + 波形图剪辑器
 
-点击音频卡片打开波形图剪辑器，支持拖拽选择区间、光标定位播放、预览裁剪。
+Agent 需要用户精确选择音频片段时弹出。支持拖拽选择区间、光标定位播放。
 
 ![音频选择器](assets/screenshots/02-audio-picker.png)
 
@@ -179,13 +201,13 @@ Scope 支持：`command` | `file` | `tool` | `network`
 
 ### 🎬 视频选择器
 
-支持视频预览播放，hover 显示路径，一键打开所在目录。
+Agent 需要用户选择视频并裁剪片段时弹出。支持视频预览播放、时间轴区间选择。
 
 ![视频选择器](assets/screenshots/05-video-picker.png)
 
 ### 🖼️ 图片编辑器
 
-点击图片卡片打开编辑器，支持裁剪、调整大小、一键抠图（rembg）。
+Agent 需要用户确认裁剪/调整大小/抠图时弹出。
 
 ![图片编辑器](assets/screenshots/07-image-editor-modal.png)
 
