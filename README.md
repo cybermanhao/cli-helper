@@ -23,6 +23,7 @@
 | 通用文件管理器 | 文件选择器只在 Agent 需要用户确认文件列表时临时弹出 |
 | 桌面应用 | 没有常驻窗口，所有界面都是任务触发后临时拉起，任务结束即关闭 |
 | 操作系统替代品 | 不替代 Shell、Finder、Explorer，而是在 Agent 需要人类介入时桥接两者 |
+| 操作历史数据库 | Audit Log 和 Timeline 只是人机协作的**可观测性副产品**，用于调试和安全追溯，不做历史管理、不做文件树索引 |
 
 ---
 
@@ -101,10 +102,6 @@ Scope 支持：`command` | `file` | `tool` | `network`
 - `git push` → confirm
 - `npm install` → allow
 - `.env` 文件 → confirm
-
-### Audit Log
-
-每次工具调用和策略评估都被记录到审计日志（`~/.cli-helper/audit.jsonl`），提供完整的 Agent 行为追溯。
 
 ### Choice（Human-in-the-Loop）
 
